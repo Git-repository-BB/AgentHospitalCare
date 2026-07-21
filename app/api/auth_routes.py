@@ -1,19 +1,23 @@
-"""Authentication routes: registration, login, and one-time admin bootstrap."""
+"""Authentication routes: registration, login check, and one-time admin bootstrap.
+
+Login/register do not issue tokens. Protected endpoints authenticate with
+HTTP Basic Auth (username + password on each request).
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.security import create_access_token, hash_password, verify_password
+from app.auth.security import hash_password, verify_password
 from app.database.db import get_db
 from app.database.models import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=TokenResponse)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@router.post("/register", response_model=AuthResponse)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> AuthResponse:
     """Public self-registration. Always creates a 'patient' role account."""
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing is not None:
@@ -24,12 +28,11 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenRe
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(subject=user.username, role=user.role)
-    return TokenResponse(access_token=token, role=user.role)
+    return AuthResponse(username=user.username, role=user.role, message="Registered. Use username and password for Basic Auth.")
 
 
-@router.post("/bootstrap-admin", response_model=TokenResponse)
-def bootstrap_admin(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@router.post("/bootstrap-admin", response_model=AuthResponse)
+def bootstrap_admin(payload: RegisterRequest, db: Session = Depends(get_db)) -> AuthResponse:
     """Create the first administrator account. Only works while no users exist yet."""
     if db.query(User).count() > 0:
         raise HTTPException(
@@ -42,15 +45,14 @@ def bootstrap_admin(payload: RegisterRequest, db: Session = Depends(get_db)) -> 
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(subject=user.username, role=user.role)
-    return TokenResponse(access_token=token, role=user.role)
+    return AuthResponse(username=user.username, role=user.role, message="Admin created. Use username and password for Basic Auth.")
 
 
-@router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@router.post("/login", response_model=AuthResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    """Verify username/password. Does not issue a token — use Basic Auth on API calls."""
     user = db.query(User).filter(User.username == payload.username).first()
     if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
-    token = create_access_token(subject=user.username, role=user.role)
-    return TokenResponse(access_token=token, role=user.role)
+    return AuthResponse(username=user.username, role=user.role, message="Credentials valid. Use username and password for Basic Auth.")

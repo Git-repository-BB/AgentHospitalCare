@@ -1,22 +1,14 @@
-"""Password hashing and JWT helpers.
+"""Password hashing helpers.
 
 Uses PBKDF2-HMAC-SHA256 for password hashing (stdlib only, no extra native
-dependency) and PyJWT for signing/verifying access tokens.
+dependency). Authentication itself is username + password via HTTP Basic Auth.
 """
 from __future__ import annotations
 
 import base64
-import datetime as dt
 import hashlib
 import hmac
-import os
 import secrets
-
-import jwt
-
-JWT_SECRET = os.environ.get("AGENTCARE_JWT_SECRET", "dev-insecure-secret-change-me-please-32bytes")
-JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("AGENTCARE_JWT_EXPIRE_MINUTES", "480"))
 
 _PBKDF2_ITERATIONS = 260_000
 
@@ -38,20 +30,3 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
     derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
     return hmac.compare_digest(derived, expected)
-
-
-def create_access_token(subject: str, role: str) -> str:
-    """Create a signed JWT access token for the given username/role."""
-    now = dt.datetime.now(dt.timezone.utc)
-    payload = {
-        "sub": subject,
-        "role": role,
-        "iat": now,
-        "exp": now + dt.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-
-def decode_access_token(token: str) -> dict:
-    """Decode and validate a JWT access token. Raises jwt.PyJWTError on failure."""
-    return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])

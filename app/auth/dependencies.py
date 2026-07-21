@@ -1,38 +1,35 @@
-"""FastAPI dependencies for authentication and role-based access control."""
+"""FastAPI dependencies for authentication and role-based access control.
+
+Uses HTTP Basic Auth: every protected request sends username + password.
+No JWT tokens are issued or verified.
+"""
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
-import jwt
-
-from app.auth.security import decode_access_token
+from app.auth.security import verify_password
 from app.database.db import get_db
 from app.database.models import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+security = HTTPBasic(auto_error=False)
 
 
 def get_current_user(
-    token: str | None = Depends(oauth2_scheme),
+    credentials: HTTPBasicCredentials | None = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+        detail="Invalid username or password",
+        headers={"WWW-Authenticate": "Basic"},
     )
-    if not token:
+    if credentials is None:
         raise credentials_error
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as exc:
-        raise credentials_error from exc
 
-    username = payload.get("sub")
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
+    user = db.query(User).filter(User.username == credentials.username).first()
+    if user is None or not verify_password(credentials.password, user.hashed_password):
         raise credentials_error
     return user
 

@@ -1,4 +1,4 @@
-"""AgentCare Streamlit UI. Talks to the FastAPI backend over HTTP (JWT auth)."""
+"""AgentCare Streamlit UI. Talks to the FastAPI backend over HTTP (Basic Auth)."""
 from __future__ import annotations
 
 import os
@@ -12,14 +12,15 @@ st.set_page_config(page_title="AgentCare", page_icon="🏥")
 st.title("AgentCare")
 st.caption("Non-clinical patient administration workflow, powered by LLM agents")
 
-if "token" not in st.session_state:
-    st.session_state.token = None
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
     st.session_state.role = None
     st.session_state.username = None
+    st.session_state.password = None
 
 
-def _auth_headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {st.session_state.token}"}
+def _auth() -> tuple[str, str]:
+    return (st.session_state.username, st.session_state.password)
 
 
 def _login_register_ui() -> None:
@@ -35,9 +36,10 @@ def _login_register_ui() -> None:
             resp = requests.post(f"{API_BASE_URL}/auth/login", json={"username": username, "password": password})
             if resp.ok:
                 data = resp.json()
-                st.session_state.token = data["access_token"]
+                st.session_state.authenticated = True
                 st.session_state.role = data["role"]
                 st.session_state.username = username
+                st.session_state.password = password
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Login failed"))
@@ -51,9 +53,10 @@ def _login_register_ui() -> None:
             resp = requests.post(f"{API_BASE_URL}/auth/register", json={"username": username, "password": password})
             if resp.ok:
                 data = resp.json()
-                st.session_state.token = data["access_token"]
+                st.session_state.authenticated = True
                 st.session_state.role = data["role"]
                 st.session_state.username = username
+                st.session_state.password = password
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Registration failed"))
@@ -62,9 +65,10 @@ def _login_register_ui() -> None:
 def _workflow_ui() -> None:
     st.success(f"Signed in as {st.session_state.username} ({st.session_state.role})")
     if st.button("Log out"):
-        st.session_state.token = None
+        st.session_state.authenticated = False
         st.session_state.role = None
         st.session_state.username = None
+        st.session_state.password = None
         st.rerun()
 
     with st.form("request_form"):
@@ -78,7 +82,7 @@ def _workflow_ui() -> None:
         resp = requests.post(
             f"{API_BASE_URL}/workflow",
             json={"request_text": request_text, "patient_id": patient_id or None},
-            headers=_auth_headers(),
+            auth=_auth(),
         )
         if resp.ok:
             result = resp.json()
@@ -91,17 +95,17 @@ def _workflow_ui() -> None:
     if st.session_state.role == "administrator":
         st.write("---")
         st.write("### Admin: Escalations")
-        resp = requests.get(f"{API_BASE_URL}/admin/escalations", headers=_auth_headers())
+        resp = requests.get(f"{API_BASE_URL}/admin/escalations", auth=_auth())
         if resp.ok:
             st.json(resp.json())
 
         st.write("### Admin: Audit log")
-        resp = requests.get(f"{API_BASE_URL}/admin/audit-logs", headers=_auth_headers())
+        resp = requests.get(f"{API_BASE_URL}/admin/audit-logs", auth=_auth())
         if resp.ok:
             st.json(resp.json())
 
 
-if not st.session_state.token:
+if not st.session_state.authenticated:
     _login_register_ui()
 else:
     _workflow_ui()
