@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+agentcare.db
+uploads/
+.pytest_cache/
