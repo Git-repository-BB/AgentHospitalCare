@@ -31,9 +31,23 @@ def seed_doctors_and_slots(db: Session, slots_per_doctor: int = 5) -> None:
         if existing_open >= slots_per_doctor:
             continue
 
-        start = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0) + dt.timedelta(days=1)
-        for i in range(slots_per_doctor - existing_open):
-            slot_start = start + dt.timedelta(days=i, hours=9)
+        start = dt.datetime.combine(
+            dt.date.today() + dt.timedelta(days=1),
+            dt.time(hour=9),
+        )
+        existing_start_times = {
+            slot.start_time
+            for slot in db.query(AppointmentSlot.start_time)
+            .filter(AppointmentSlot.doctor_id == doctor.id)
+            .all()
+        }
+        slots_to_create = slots_per_doctor - existing_open
+        days_after_start = 0
+        while slots_to_create:
+            slot_start = start + dt.timedelta(days=days_after_start)
+            days_after_start += 1
+            if slot_start in existing_start_times:
+                continue
             db.add(
                 AppointmentSlot(
                     doctor_id=doctor.id,
@@ -42,6 +56,8 @@ def seed_doctors_and_slots(db: Session, slots_per_doctor: int = 5) -> None:
                     is_booked=False,
                 )
             )
+            existing_start_times.add(slot_start)
+            slots_to_create -= 1
         db.commit()
 
 

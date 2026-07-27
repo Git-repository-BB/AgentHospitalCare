@@ -1,5 +1,6 @@
 import pytest
 
+from app.database.models import AppointmentSlot
 from app.services import appointment_service, department_service
 
 
@@ -24,6 +25,23 @@ def test_book_appointment_raises_when_no_slots_left(db_session) -> None:
 
     with pytest.raises(appointment_service.NoSlotsAvailableError):
         appointment_service.book_appointment(db_session, "patient-2", department.id)
+
+
+def test_seed_slots_does_not_duplicate_booked_slot_times(db_session) -> None:
+    department_service.seed_departments(db_session)
+    appointment_service.seed_doctors_and_slots(db_session, slots_per_doctor=2)
+    department = department_service.get_department_by_code(db_session, "cardiology")
+
+    appointment_service.book_appointment(db_session, "patient-1", department.id)
+    appointment_service.seed_doctors_and_slots(db_session, slots_per_doctor=2)
+
+    slots = (
+        db_session.query(AppointmentSlot)
+        .join(AppointmentSlot.doctor)
+        .filter_by(department_id=department.id)
+        .all()
+    )
+    assert len({slot.start_time for slot in slots}) == len(slots)
 
 
 def test_cancel_appointment_frees_the_slot(db_session) -> None:
