@@ -1,7 +1,7 @@
 # AgentCare
 
 AgentCare is an AI-powered healthcare administration workflow built with FastAPI, Streamlit, SQLAlchemy,
-JWT auth, and a real multi-agent [CrewAI](https://docs.crewai.com/) Flow backed by an LLM (OpenAI by default).
+ and a real multi-agent [CrewAI](https://docs.crewai.com/) Flow backed by an LLM (OpenAI by default).
 
 Agents (Coordinator, Safety, Routing, Appointment, Document, Follow-up) reason over each patient request
 with the LLM and call tools backed by real services (department directory, appointment booking, document
@@ -15,8 +15,7 @@ for the full design.
 2. Install dependencies:
    - `pip install -r requirements.txt`
 3. Configure environment variables:
-   - Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (required for the agents to run) and
-     `AGENTCARE_JWT_SECRET` (recommended for anything beyond local dev).
+   - Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (required for the agents to run) 
 
 ## Run locally
 
@@ -33,7 +32,7 @@ for the full design.
 app/
   agents/      CrewAI Agent factories (one per role, distinct prompts in app/prompts)
   api/         FastAPI routers (auth, admin)
-  auth/        Password hashing + JWT issuing/verification, RBAC dependency
+  auth/        Password hashing + RBAC dependency
   database/    SQLAlchemy engine/session + ORM models
   flows/       CrewAI Flow orchestrating the agents end-to-end
   prompts/     Role/goal/backstory text per agent
