@@ -157,7 +157,8 @@ class CareFlow(Flow[CareFlowState]):
         if self.state.needs_registration:
             db = SessionLocal()
             try:
-                patient_service.get_or_create_patient(db, self.state.patient_id or "unknown")
+                self.state.patient_id = self.state.patient_id or patient_service.generate_patient_id(db)
+                patient_service.get_or_create_patient(db, self.state.patient_id)
             finally:
                 db.close()
             self.state.steps.append("patient_registration")

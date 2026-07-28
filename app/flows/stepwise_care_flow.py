@@ -163,7 +163,8 @@ def _run_step(session: StepSession, step: str) -> str:
         if state.needs_registration:
             db = SessionLocal()
             try:
-                patient_service.get_or_create_patient(db, state.patient_id or "unknown")
+                state.patient_id = state.patient_id or patient_service.generate_patient_id(db)
+                patient_service.get_or_create_patient(db, state.patient_id)
             finally:
                 db.close()
             state.steps.append("patient_registration")
