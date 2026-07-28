@@ -1,4 +1,8 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+import shutil
+import tempfile
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.admin_routes import router as admin_router
@@ -46,6 +50,34 @@ def submit_workflow(
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     return WorkflowResponse(**result)
+
+
+@app.post("/workflow/upload", response_model=WorkflowResponse, tags=["workflow"])
+def submit_workflow_with_uploads(
+    request_text: str = Form(...),
+    patient_id: str | None = Form(default=None),
+    files: list[UploadFile] = File(...),
+    _user=Depends(require_role("patient", "administrator")),
+) -> WorkflowResponse:
+    """Run the existing workflow with one or more uploaded documents."""
+    staging_dir = Path(tempfile.mkdtemp(prefix="agentcare-upload-"))
+    document_paths: list[str] = []
+    try:
+        for index, uploaded_file in enumerate(files):
+            filename = Path(uploaded_file.filename or f"upload-{index}").name
+            destination = staging_dir / f"{index}_{filename}"
+            with destination.open("wb") as output_file:
+                shutil.copyfileobj(uploaded_file.file, output_file)
+            document_paths.append(str(destination))
+
+        result = run_care_flow(request_text, patient_id, document_paths)
+        return WorkflowResponse(**result)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    finally:
+        for uploaded_file in files:
+            uploaded_file.file.close()
+        shutil.rmtree(staging_dir, ignore_errors=True)
 
 
 @app.post("/workflow/start", response_model=WorkflowStepResponse, tags=["workflow"])
