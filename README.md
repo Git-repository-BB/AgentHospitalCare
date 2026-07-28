@@ -23,8 +23,7 @@ for the full design.
    - `uvicorn app.main:app --reload`
 2. Start the UI:
    - `streamlit run streamlit/ui.py`
-3. In the UI, register an account (creates a `patient`), or call `POST /auth/bootstrap-admin`
-   once to create the first `administrator` account (only works while no users exist yet).
+3. In the UI, register an account (creates a `patient`), for admin login use username as admin and password as admin. when logged in as admin it show the audit logs and esclations from the database.
 
 ## Architecture
 
@@ -42,9 +41,86 @@ app/
 streamlit/     Streamlit UI (talks to the API over HTTP with a JWT bearer token)
 ```
 
-## Tests
+Agentic Orchestration
 
-- `pytest -q`
 
-Tests for services/tools/database logic run without any LLM calls. Tests that exercise the full
-CrewAI Flow require `OPENAI_API_KEY` to be set and are skipped automatically otherwise.
+&#x20;               Streamlit UI
+
+
+
+&#x20;                    │
+
+
+
+&#x20;                FastAPI APIs
+
+
+
+&#x20;                    │
+
+
+
+&#x20;              CrewAI Flow
+
+
+
+&#x20;                    │
+
+
+
+&#x20;       Coordinator Agent (decide Intent)
+
+
+
+&#x20;                    │
+
+
+&#x20;            Safety Agent  ----->> Unsafe (asking medical advice) ---- esclation
+
+
+
+&#x20;                    │   Safe
+
+                       Routing
+
+                          │
+
+&#x20;  ┌──────────┬──────────┬─────────┬─────────┐
+
+
+
+   Appointment Agent   Document Agent   Follow-up Agent
+
+
+
+&#x20;                    │
+
+
+&#x20;            Flow complete
+
+
+
+The database used is SQLite database. It is in the repo.
+
+## Usage
+
+
+1. As new user first you have to register in the register tab and login with registered user id and password.
+2. Now once you login to the AgentCare you can perform various activities as below.
+
+Register the new patient.
+Just type need to register patient. It will select random code PXXX Ex: P715 and return the patient id and the flow it has gone through. The details of the patient will be saved in the table PatientProfile. The patient name will not be considered for simplicity.
+
+Book appointment
+Fill the Patient ID tab and in request tab, just type required appointment with the specalist like cardilologist. It book the appointment and provide the appointment_id. That appointment details will be saved in the backend database table Appointment.
+
+Cancel appointment
+Fill the Patient ID tab and in request tab, Give you appointment id and ask to cancel in natural language it will cancel the apointment for that id and the cancellation entry will be in the Appointment table. Use dbqyery.py to query the database.
+
+Document upload
+Fill the Patient ID tab and in request tab enter need to upload document and select the file to be uplaoded. The details will be stored in the Document table.
+
+other tables 
+ AuditLog, Department, Document, Escalation, Reminder, User ,PatientProfile ,Doctor   ,AppointmentSlot   ,Appointment, WorkflowRun
+
+Login as admin with user as admin and passwod as admin to see the esclated incidents.

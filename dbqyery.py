@@ -3,10 +3,20 @@ from app.database.models import AuditLog, Department, Document, Escalation, Remi
 
 db = SessionLocal()
 
-users = db.query(Appointment).all()
-Appointmen = db.query(Appointment).all()
+users = db.query(PatientProfile).all()
+Appointments = db.query(Appointment).all()
 
-for AppointmentSlotss in Appointmen:
-    print(AppointmentSlotss.__dict__)
+for Appointmen in Appointments:
+    print(Appointmen.__dict__)
+
+
 
 db.close()
+
+
+#try:
+#    deleted = db.query(Escalation).delete()
+#    db.commit()
+#    print(f"Deleted {deleted} rows.")
+#finally:
+#    db.close()
