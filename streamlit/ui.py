@@ -76,14 +76,27 @@ def _workflow_ui() -> None:
         request_text = st.text_area(
             "Request", placeholder="Example: I need to register and book an appointment for cardiology"
         )
+        uploaded_files = st.file_uploader("Documents", accept_multiple_files=True)
         submitted = st.form_submit_button("Submit")
 
     if submitted:
-        resp = requests.post(
-            f"{API_BASE_URL}/workflow",
-            json={"request_text": request_text, "patient_id": patient_id or None},
-            auth=_auth(),
-        )
+        if uploaded_files:
+            files = [
+                ("files", (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type))
+                for uploaded_file in uploaded_files
+            ]
+            resp = requests.post(
+                f"{API_BASE_URL}/workflow/upload",
+                data={"request_text": request_text, "patient_id": patient_id},
+                files=files,
+                auth=_auth(),
+            )
+        else:
+            resp = requests.post(
+                f"{API_BASE_URL}/workflow",
+                json={"request_text": request_text, "patient_id": patient_id or None},
+                auth=_auth(),
+            )
         if resp.ok:
             result = resp.json()
             st.success(result["summary"])
