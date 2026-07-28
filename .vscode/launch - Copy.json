@@ -1,7 +1,42 @@
 {
   "version": "0.2.0",
   "configurations": [
-      {
+    {
+      "name": "Debug FastAPI (F10-friendly)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Debug Workflow Steps (F10)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "scripts.debug_workflow_steps",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
       "name": "Python: FastAPI Backend (reload)",
       "type": "debugpy",
       "request": "launch",
