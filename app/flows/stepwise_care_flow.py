@@ -102,7 +102,9 @@ def _run_step(session: StepSession, step: str) -> str:
             build_coordinator_agent(llm),
             description=(
                 "Analyze the following patient administrative request and determine the intent "
-                f"and which steps are needed.\n\nRequest: \"{state.request_text}\""
+                "and which steps are needed. A request to cancel an appointment is an appointment "
+                "scheduling request: set needs_appointment=True and use intent='appointment_cancellation'."
+                f"\n\nRequest: \"{state.request_text}\""
             ),
             expected_output="A structured plan describing intent and required steps.",
             output_pydantic=CoordinatorPlan,
@@ -175,21 +177,29 @@ def _run_step(session: StepSession, step: str) -> str:
         result: AppointmentResult = _run_single_agent_task(
             build_appointment_agent(llm),
             description=(
-                "Check availability with the Appointment Availability Tool for department "
-                f"'{state.department_id}', then book the earliest slot with the Appointment "
-                f"Booking Tool using patient_id='{state.patient_id or 'unknown'}' and "
-                f"department_code='{state.department_id}'."
+                f"Patient request: \"{state.request_text}\"\n\n"
+                "Decide the required scheduling action. For booking, check availability with the "
+                f"Appointment Availability Tool for department '{state.department_id}', then book "
+                f"using patient_id='{state.patient_id or 'unknown'}' and "
+                f"department_code='{state.department_id}'. For cancellation, extract the appointment "
+                "id from the patient request and call the Appointment Cancellation Tool. Do not check "
+                "availability or book a replacement when cancelling. If no numeric appointment id is "
+                "provided, return action='failed' without calling a booking tool."
             ),
-            expected_output="Whether an appointment was booked, its id and scheduled time.",
+            expected_output="A structured result with action 'booked', 'cancelled', or 'failed', the appointment id, and detail.",
             output_pydantic=AppointmentResult,
         )
         state.agent_plan.append("appointment")
-        if result.booked:
+        state.appointment_action = result.action
+        if result.action == "booked":
             state.appointment_id = result.appointment_id
             state.appointment_time = result.scheduled_time
             state.steps.append("appointment_booking")
+        elif result.action == "cancelled":
+            state.appointment_id = result.appointment_id
+            state.steps.append("appointment_cancellation")
         session.next_step = STEP_DOCUMENTS
-        return f"booked={result.booked}; appointment_id={result.appointment_id}"
+        return f"action={result.action}; appointment_id={result.appointment_id}"
 
     if step == STEP_DOCUMENTS:
         if not state.needs_documents or not state.pending_document_paths:
@@ -215,7 +225,7 @@ def _run_step(session: StepSession, step: str) -> str:
         return f"documents={state.documents}"
 
     if step == STEP_FOLLOWUP:
-        if not (state.needs_reminder or state.appointment_id):
+        if not (state.needs_reminder or state.appointment_action == "booked"):
             session.next_step = STEP_FINALIZE
             return "skipped (no reminder needed)"
         message = (

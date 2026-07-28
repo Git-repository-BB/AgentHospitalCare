@@ -1,13 +1,15 @@
 """Pydantic schemas for structured LLM task outputs within the CrewAI flow."""
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class CoordinatorPlan(BaseModel):
-    intent: str = Field(description="Short intent label, e.g. 'cardiology', 'registration', 'appointment'.")
+    intent: str = Field(description="Short intent label, e.g. 'cardiology', 'registration', 'appointment_booking', or 'appointment_cancellation'.")
     needs_registration: bool = Field(description="Whether the patient needs to be registered.")
-    needs_appointment: bool = Field(description="Whether an appointment should be booked.")
+    needs_appointment: bool = Field(description="Whether the request needs appointment scheduling, including booking or cancellation.")
     needs_documents: bool = Field(description="Whether the request involves document upload/handling.")
     needs_reminder: bool = Field(description="Whether the patient wants a follow-up reminder.")
 
@@ -23,8 +25,8 @@ class RoutingDecision(BaseModel):
 
 
 class AppointmentResult(BaseModel):
-    booked: bool = Field(description="Whether an appointment was successfully booked in case of booking. Whether an appointment was successfully cancelled in case of cancellation.")
-    appointment_id: str | None = Field(default=None, description="The booked appointment id, if any.")
+    action: Literal["booked", "cancelled", "failed"] = Field(description="The scheduling action completed by the appointment tools.")
+    appointment_id: str | None = Field(default=None, description="The appointment id that was booked or cancelled, if any.")
     scheduled_time: str | None = Field(default=None, description="ISO timestamp of the booked slot, if any.")
     detail: str = Field(default="", description="Any extra detail or error message from the tool.")
 

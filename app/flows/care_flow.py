@@ -52,6 +52,7 @@ class CareFlowState(BaseModel):
 
     appointment_id: str | None = None
     appointment_time: str | None = None
+    appointment_action: str | None = None
 
     pending_document_paths: list[str] = Field(default_factory=list)
     documents: list[str] = Field(default_factory=list)
@@ -86,7 +87,9 @@ class CareFlow(Flow[CareFlowState]):
             agent,
             description=(
                 "Analyze the following patient administrative request and determine the intent "
-                f"and which steps are needed.\n\nRequest: \"{self.state.request_text}\""
+                "and which steps are needed. A request to cancel an appointment is an appointment "
+                "scheduling request: set needs_appointment=True and use intent='appointment_cancellation'."
+                f"\n\nRequest: \"{self.state.request_text}\""
             ),
             expected_output="A structured plan describing intent and required steps.",
             output_pydantic=CoordinatorPlan,
@@ -168,20 +171,27 @@ class CareFlow(Flow[CareFlowState]):
         result: AppointmentResult = _run_single_agent_task(
             agent,
             description=(
-                "when requested for appointment Check availability with the Appointment Availability Tool for department "
-                f"'{self.state.department_id}', then book the earliest slot with the Appointment "
-                f"Booking Tool using patient_id='{self.state.patient_id or 'unknown'}' and "
-                f"department_code='{self.state.department_id}'."
-                "When requested for cancellation, cancel the appointment with the Appointment Cancellation Tool using, donot book other appointment during cancellation." 
-                         ),
-            expected_output="Whether an appointment was booked, its id and scheduled time.",
+                f"Patient request: \"{self.state.request_text}\"\n\n"
+                "Decide the required scheduling action. For booking, check availability with the "
+                f"Appointment Availability Tool for department '{self.state.department_id}', then book "
+                f"using patient_id='{self.state.patient_id or 'unknown'}' and "
+                f"department_code='{self.state.department_id}'. For cancellation, extract the appointment "
+                "id from the patient request and call the Appointment Cancellation Tool. Do not check "
+                "availability or book a replacement when cancelling. If no numeric appointment id is "
+                "provided, return action='failed' without calling a booking tool."
+            ),
+            expected_output="A structured result with action 'booked', 'cancelled', or 'failed', the appointment id, and detail.",
             output_pydantic=AppointmentResult,
         )
         self.state.agent_plan.append("appointment")
-        if result.booked:
+        self.state.appointment_action = result.action
+        if result.action == "booked":
             self.state.appointment_id = result.appointment_id
             self.state.appointment_time = result.scheduled_time
             self.state.steps.append("appointment_booking")
+        elif result.action == "cancelled":
+            self.state.appointment_id = result.appointment_id
+            self.state.steps.append("appointment_cancellation")
 
     @listen(handle_appointment)
     def handle_documents(self):
@@ -208,7 +218,7 @@ class CareFlow(Flow[CareFlowState]):
 
     @listen(handle_documents)
     def handle_followup(self):
-        if not (self.state.needs_reminder or self.state.appointment_id):
+        if not (self.state.needs_reminder or self.state.appointment_action == "booked"):
             return
         llm = get_llm()
         agent = build_followup_agent(llm)
