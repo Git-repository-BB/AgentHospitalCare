@@ -23,7 +23,7 @@ class RoutingDecision(BaseModel):
 
 
 class AppointmentResult(BaseModel):
-    booked: bool = Field(description="Whether an appointment was successfully booked.")
+    booked: bool = Field(description="Whether an appointment was successfully booked in case of booking. Whether an appointment was successfully cancelled in case of cancellation.")
     appointment_id: str | None = Field(default=None, description="The booked appointment id, if any.")
     scheduled_time: str | None = Field(default=None, description="ISO timestamp of the booked slot, if any.")
     detail: str = Field(default="", description="Any extra detail or error message from the tool.")

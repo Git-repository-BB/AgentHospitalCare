@@ -3,10 +3,10 @@ from app.database.models import AuditLog, Department, Document, Escalation, Remi
 
 db = SessionLocal()
 
-users = db.query(PatientProfile).all()
-AppointmentSlots = db.query(AppointmentSlot).all()
+users = db.query(Appointment).all()
+Appointmen = db.query(Appointment).all()
 
-for AppointmentSlotss in AppointmentSlots:
+for AppointmentSlotss in Appointmen:
     print(AppointmentSlotss.__dict__)
 
 db.close()

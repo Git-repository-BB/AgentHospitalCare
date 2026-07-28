@@ -168,11 +168,12 @@ class CareFlow(Flow[CareFlowState]):
         result: AppointmentResult = _run_single_agent_task(
             agent,
             description=(
-                "Check availability with the Appointment Availability Tool for department "
+                "when requested for appointment Check availability with the Appointment Availability Tool for department "
                 f"'{self.state.department_id}', then book the earliest slot with the Appointment "
                 f"Booking Tool using patient_id='{self.state.patient_id or 'unknown'}' and "
                 f"department_code='{self.state.department_id}'."
-            ),
+                "When requested for cancellation, cancel the appointment with the Appointment Cancellation Tool using, donot book other appointment during cancellation." 
+                         ),
             expected_output="Whether an appointment was booked, its id and scheduled time.",
             output_pydantic=AppointmentResult,
         )
