@@ -81,7 +81,7 @@ Agentic Orchestration
 
 &#x20;                    │   Safe
 
-                       Routing
+                       Routing (route to the correct department)
 
                           │
 
@@ -89,8 +89,9 @@ Agentic Orchestration
 
 
 
-   Appointment Agent   Document Agent   Follow-up Agent
-
+   Appointment Agent      Document Agent                        Follow-up Agent
+(Use appointment tool,    (use parsing,storage etc tools)
+cancelation etc tools)
 
 
 &#x20;                    │
